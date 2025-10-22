@@ -1,0 +1,15 @@
+# Use this with: helm install prometheus prometheus-community/kube-prometheus-stack -n monitoring --create-namespace -f prometheus-values.yaml
+prometheus:
+  prometheusSpec:
+    retention: 10d
+    evaluationInterval: 30s
+
+kubeStateMetrics:
+  enabled: true
+nodeExporter:
+  enabled: true
+alertmanager:
+  enabled: true
+grafana:
+  enabled: true
+  adminPassword: "prom-operator"
