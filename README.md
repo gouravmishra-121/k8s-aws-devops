@@ -1,171 +1,98 @@
-Kubernetes on AWS (EKS) with CI/CD, Monitoring & GitHub Actions
+# k8s-aws-devops
 
-This repository demonstrates a production-grade DevOps setup deploying a Flask app to AWS EKS using CI/CD with GitHub Actions, containerized images on ECR, and monitoring via Prometheus & Grafana.
+> Small example project showing how to build a simple Flask app, containerize it, and deploy to Kubernetes with observability values for Prometheus and Grafana.
 
-Features
 
-Flask app with Prometheus metrics endpoint (/metrics)
+Table of Contents
+- Overview
+- Repo layout
+- Quickstart
+- Build & push image
+- Deploy to Kubernetes
+- Monitoring
+- Files of interest
+- License
+- Contact
 
-Dockerized container ready for production with Gunicorn
+Overview
+This repo contains a tiny Flask sample app (app/app.py), a Dockerfile to build the image, Kubernetes manifests in k8s/ for deploying the app, and monitoring Helm values for Prometheus & Grafana in monitoring/.
 
-Kubernetes manifests:
+Repo layout (key items)
+- app/ — Flask app, Dockerfile, Python deps
+  - app/app.py — simple Flask service
+  - app/Dockerfile — Dockerfile for the Flask app
+  - app/requirements.txt — Python dependencies
+- k8s/ — Kubernetes manifests
+  - namespace.yaml
+  - deployment.yaml
+  - service.yaml
+  - configmap.yaml
+  - flask-servicemonitor.yaml
+- monitoring/ — Helm values for observability components
+  - prometheus-values.yaml
+  - grafana-values.yaml
+- .github/workflows/ — CI/CD workflow templates (if present)
+- LICENSE — MIT
 
-Deployment
-
-Service (LoadBalancer)
-
-ConfigMap
-
-Horizontal Pod Autoscaler (HPA)
-
-CI/CD pipeline:
-
-GitHub Actions workflow builds Docker image, pushes to ECR, deploys to EKS
-
-Monitoring stack:
-
-Prometheus + Grafana via Helm
-
-Metrics scraping of the app + cluster resources
-
-Scalable and configurable for production-grade use
-
-Prerequisites
-
-AWS account with an EKS cluster and ECR repository
-
-Local AWS CLI configured (for initial setup)
-
-kubectl installed locally
-
-GitHub repository with Secrets for CI/CD:
-
-AWS_ACCESS_KEY_ID → GitHub Actions IAM user access key
-
-AWS_SECRET_ACCESS_KEY → GitHub Actions IAM secret key
-
-EKS_CLUSTER_NAME → your EKS cluster name
-
-Note: A one-time update to the cluster aws-auth ConfigMap is required to allow the GitHub Actions IAM user to deploy.
-
-Repo Structure
-k8s-aws-devops/
-├── app/
-│   ├── app.py              # Flask app
-│   ├── requirements.txt
-│   └── Dockerfile
-├── k8s/
-│   ├── namespace.yaml
-│   ├── deployment.yaml
-│   ├── service.yaml
-│   ├── hpa.yaml
-│   └── configmap.yaml
-├── monitoring/
-│   ├── prometheus-values.yaml
-│   └── grafana-values.yaml
-├── .github/
-│   └── workflows/
-│       └── ci-cd.yaml
-├── aws-auth.yaml           # Local copy for cluster update (do not push)
-└── README.md
-
-Setup Instructions
+Quickstart (example)
 1. Clone the repo
-git clone <your-repo-url>
+```bash
+git clone https://github.com/gouravmishra-121/k8s-aws-devops.git
 cd k8s-aws-devops
+```
 
-2. Create ECR repository
-aws ecr create-repository --repository-name flask-demo --region us-east-1
+2. Build the Docker image locally
+```bash
+docker build -t myapp:latest -f app/Dockerfile app/
+```
 
-3. Create EKS cluster (if not done already)
-eksctl create cluster --name k8AWSDevops --region us-east-1 --nodes 2
+3. (Optional) Tag & push to your registry (example: ECR, Docker Hub)
+```bash
+# Example Docker Hub
+docker tag myapp:latest your-dockerhub-username/myapp:latest
+docker push your-dockerhub-username/myapp:latest
 
-4. Update aws-auth ConfigMap
+# Example ECR (assumes repo exists and you are authenticated)
+docker tag myapp:latest <ACCOUNT_ID>.dkr.ecr.<REGION>.amazonaws.com/myapp:latest
+docker push <ACCOUNT_ID>.dkr.ecr.<REGION>.amazonaws.com/myapp:latest
+```
 
-One-time setup to allow GitHub Actions IAM user to deploy:
+Deploy to Kubernetes
+1. Ensure kubeconfig points to your cluster
+2. Apply namespace + manifests
+```bash
+kubectl apply -f k8s/namespace.yaml
+kubectl apply -f k8s/configmap.yaml
+kubectl apply -f k8s/deployment.yaml
+kubectl apply -f k8s/service.yaml
+kubectl apply -f k8s/flask-servicemonitor.yaml   # if you use Prometheus Operator
+```
 
-Export current configmap:
+3. Verify
+```bash
+kubectl -n <namespace-from-namespace.yaml> get pods,svc
+kubectl -n <namespace> rollout status deployment/<deployment-name>
+```
 
-kubectl get configmap aws-auth -n kube-system -o yaml > aws-auth.yaml
+Monitoring
+- Prometheus/Grafana values are in monitoring/prometheus-values.yaml and monitoring/grafana-values.yaml. Use these with your Helm chart installs for prometheus/grafana to configure scraping and dashboards.
+- The repo includes a ServiceMonitor manifest (k8s/flask-servicemonitor.yaml) compatible with Prometheus Operator.
 
+Files of interest (direct links)
+- app/app.py — https://github.com/gouravmishra-121/k8s-aws-devops/blob/main/app/app.py  
+- app/Dockerfile — https://github.com/gouravmishra-121/k8s-aws-devops/blob/main/app/Dockerfile  
+- k8s/deployment.yaml — https://github.com/gouravmishra-121/k8s-aws-devops/blob/main/k8s/deployment.yaml  
+- k8s/service.yaml — https://github.com/gouravmishra-121/k8s-aws-devops/blob/main/k8s/service.yaml  
+- monitoring/prometheus-values.yaml — https://github.com/gouravmishra-121/k8s-aws-devops/blob/main/monitoring/prometheus-values.yaml  
+- monitoring/grafana-values.yaml — https://github.com/gouravmishra-121/k8s-aws-devops/blob/main/monitoring/grafana-values.yaml
 
-Edit aws-auth.yaml and add your GitHub IAM user under mapUsers:
+Notes & recommendations
+- Replace placeholder image references in k8s/deployment.yaml with your image registry and tag.
+- If you want automated CI/CD, the .github/workflows directory contains workflow templates you can adapt to build, test, push, and deploy.
+- Use Secrets (AWS Secrets Manager / Kubernetes Secrets) instead of embedding credentials in manifests.
 
-  mapUsers: |
-    - userarn: arn:aws:iam::<account-id>:user/github-actions-user
-      username: github-actions-user
-      groups:
-        - system:masters
+License
+This project is licensed under the MIT License — see LICENSE.
 
-
-Apply changes:
-
-kubectl apply -f aws-auth.yaml
-
-
-Do not push aws-auth.yaml to GitHub; it contains sensitive cluster info.
-
-5. Configure GitHub Secrets
-
-AWS_ACCESS_KEY_ID → GitHub Actions IAM user key
-
-AWS_SECRET_ACCESS_KEY → GitHub Actions IAM user secret
-
-EKS_CLUSTER_NAME → your EKS cluster name
-
-6. Install Prometheus & Grafana
-helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
-helm repo update
-helm install prometheus prometheus-community/kube-prometheus-stack \
-  -n monitoring --create-namespace \
-  -f monitoring/prometheus-values.yaml \
-  -f monitoring/grafana-values.yaml
-
-
-Access Grafana:
-
-kubectl port-forward -n monitoring svc/prometheus-grafana 3000:80
-# open http://localhost:3000
-# admin / prom-operator
-
-7. CI/CD Workflow
-
-On push to main (or your branch), GitHub Actions will:
-
-Build Docker image
-
-Push image to ECR
-
-Update Kubernetes deployment manifests
-
-Deploy the Flask app to EKS
-
-IMAGE_TAG is automatically generated from the commit SHA.
-
-8. Test Deployment
-kubectl get pods -n demo-app
-kubectl get svc -n demo-app
-kubectl get hpa -n demo-app
-
-
-Visit the LoadBalancer URL to see your Flask app running.
-
-Visit Grafana to monitor metrics.
-
-Next Steps / Improvements
-
-Use GitHub OIDC for secure IAM role assumption (no long-lived keys)
-
-Implement Blue/Green or Canary deployments with Argo Rollouts
-
-Configure Grafana dashboards and alerts (Slack/Email)
-
-Use Terraform to manage cluster and ECR infrastructure
-
-Notes
-
-Secrets in GitHub Actions keep your credentials safe.
-
-aws-auth changes are cluster-specific and do not need to be pushed to GitHub.
-
-This README is concise but production-grade ready, covering setup, CI/CD, and monitoring.
+Contact
+Maintainer: gouravmishra-121 — https://github.com/gouravmishra-121
