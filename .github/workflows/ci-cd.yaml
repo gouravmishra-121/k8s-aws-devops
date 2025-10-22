@@ -1,8 +1,8 @@
 name: CI/CD - Build, Push to ECR, Deploy to EKS
 
-on:
-  push:
-    branches: [ main ]
+#on:
+ # push:
+  #  branches: [ main ]
 
 env:
   ECR_REPOSITORY: flask-demo
