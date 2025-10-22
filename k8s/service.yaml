@@ -3,12 +3,14 @@ kind: Service
 metadata:
   name: flask-service
   namespace: demo-app
+  labels:
+    app: flask-app # << add this
 spec:
   type: LoadBalancer
   selector:
     app: flask-app
   ports:
-  - name: http          # << add this
+  - name: http # << important for Prometheus
     port: 80
     targetPort: 5000
     protocol: TCP
