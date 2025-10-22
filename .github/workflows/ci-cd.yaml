@@ -55,7 +55,7 @@ jobs:
     - name: Install kubectl
       uses: azure/setup-kubectl@v3
       with:
-        version: '1.27.3'
+        version: 'latest'
 
     - name: Update Kubeconfig (EKS)
       uses: aws-actions/configure-aws-credentials@v4
